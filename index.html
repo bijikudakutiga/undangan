@@ -276,7 +276,12 @@
   <span class="bar"><span></span><span></span><span></span></span>
 </button>
 
-<audio id="bgm" src="assets/musik-pengiring.mp3" loop preload="auto"></audio>
+<audio id="bgm" preload="auto" loop>
+  <source src="assets/musik-pengiring.mp3" type="audio/mpeg">
+</audio>
+<div id="musicHint" style="position:fixed;top:74px;right:20px;z-index:60;background:rgba(255,253,248,.95);border:1px solid var(--gold);color:var(--gold-deep);font-family:'Cormorant',serif;font-size:.85rem;padding:8px 14px;border-radius:6px;display:none;box-shadow:0 6px 18px rgba(138,106,52,.2);">
+  Ketuk ikon musik untuk memutar
+</div>
 
 <!-- INVITATION -->
 <div id="invitation">
@@ -615,8 +620,16 @@ envelope.addEventListener('click', ()=>{
   if(envelope.classList.contains('open')) return;
   envelope.classList.add('open');
   bgm.volume = 0.6;
-  bgm.play().catch(()=>{ /* browser tetap boleh blokir; tombol musik tersedia sbg fallback */ });
   musicToggle.classList.add('show');
+  const playPromise = bgm.play();
+  if(playPromise && playPromise.catch){
+    playPromise.catch(()=>{
+      // Browser memblokir autoplay: tampilkan petunjuk agar tamu tap ikon musik
+      document.getElementById('musicHint').style.display = 'block';
+      musicToggle.classList.add('paused');
+      setTimeout(()=>{ document.getElementById('musicHint').style.display = 'none'; }, 6000);
+    });
+  }
   setTimeout(()=>{
     envScreen.classList.add('hidden');
     invitation.classList.add('show');
@@ -626,6 +639,7 @@ envelope.addEventListener('click', ()=>{
 });
 
 musicToggle.addEventListener('click', ()=>{
+  document.getElementById('musicHint').style.display = 'none';
   if(bgm.paused){ bgm.play().catch(()=>{}); musicToggle.classList.remove('paused'); }
   else { bgm.pause(); musicToggle.classList.add('paused'); }
 });
