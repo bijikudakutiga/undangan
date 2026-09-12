@@ -258,7 +258,7 @@
   <div class="frame-corner bl"></div><div class="frame-corner br"></div>
   <div class="env-title">
     <div class="eyebrow">The Wedding Of</div>
-    <div class="script">Yan Peter &amp; Margaretha</div>
+    <div class="script">Yan &amp; Listy</div>
   </div>
   <div class="envelope" id="envelope">
     <div class="env-guest">
@@ -539,7 +539,10 @@ document.getElementById('rsvpForm').addEventListener('submit', async (e)=>{
     document.getElementById('rsvpForm').reset();
     btn.textContent='Terkirim';
   }catch(err){
-    result.textContent='Terjadi kendala saat mengirim, coba lagi.';
+    console.error('RSVP error:', err);
+    result.textContent = params.get('debug')==='1'
+      ? 'Error: ' + (err && err.message ? err.message : JSON.stringify(err))
+      : 'Terjadi kendala saat mengirim, coba lagi.';
     result.className='form-msg err';
     btn.disabled=false; btn.textContent='Kirim Konfirmasi';
   }
@@ -603,7 +606,10 @@ document.getElementById('wishForm').addEventListener('submit', async (e)=>{
     document.getElementById('wishForm').reset();
     btn.textContent='Terkirim';
   }catch(err){
-    result.textContent='Terjadi kendala saat mengirim, coba lagi.';
+    console.error('Wish error:', err);
+    result.textContent = params.get('debug')==='1'
+      ? 'Error: ' + (err && err.message ? err.message : JSON.stringify(err))
+      : 'Terjadi kendala saat mengirim, coba lagi.';
     result.className='form-msg err';
     btn.disabled=false; btn.textContent='Kirim Ucapan';
   }
