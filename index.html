@@ -431,6 +431,11 @@
     font-family:'Cormorant'; font-size:1.05rem; border-radius:4px; color:var(--ink);
   }
   .field textarea{ resize:vertical; min-height:70px; }
+  .field input[readonly]{
+    background:var(--ivory-deep); color:var(--ink-soft); cursor:default;
+    border-color:var(--line);
+  }
+  .field .locked-note{ font-size:.72rem; color:var(--ink-soft); margin-top:6px; font-style:italic; }
   .btn-gold{
     background:linear-gradient(100deg,var(--gold-deep),var(--gold),var(--gold-light));
     color:#fff; border:none; padding:14px 40px; font-size:.85rem; letter-spacing:.14em; text-transform:uppercase;
@@ -586,6 +591,7 @@
       <div class="field">
         <label>Nama</label>
         <input type="text" id="rsvpName" required>
+        <div class="locked-note" id="rsvpNameLockNote" style="display:none;">Nama sesuai undangan Anda. Hubungi kami bila ada kesalahan nama.</div>
       </div>
       <div class="seat-choice">
         <label><input type="radio" name="attend" value="Hadir" checked><span>Hadir</span></label>
@@ -610,6 +616,7 @@
       <div class="field">
         <label>Nama</label>
         <input type="text" id="wishName" required>
+        <div class="locked-note" id="wishNameLockNote" style="display:none;">Nama sesuai undangan Anda. Hubungi kami bila ada kesalahan nama.</div>
       </div>
       <div class="field">
         <label>Ucapan</label>
@@ -1037,7 +1044,17 @@ envelope.addEventListener('click', ()=>{
   setTimeout(()=>{
     envScreen.classList.add('hidden');
     invitation.classList.add('show');
-    document.getElementById('rsvpName').value = guestName==='Tamu Undangan' ? '' : guestName;
+    const nameKnown = guestName !== 'Tamu Undangan';
+    const rsvpNameInput = document.getElementById('rsvpName');
+    const wishNameInput = document.getElementById('wishName');
+    rsvpNameInput.value = nameKnown ? guestName : '';
+    wishNameInput.value = nameKnown ? guestName : '';
+    if(nameKnown){
+      rsvpNameInput.setAttribute('readonly', true);
+      wishNameInput.setAttribute('readonly', true);
+      document.getElementById('rsvpNameLockNote').style.display = 'block';
+      document.getElementById('wishNameLockNote').style.display = 'block';
+    }
     setTimeout(()=>{
       revealEls[0].classList.add('in');
       revealEls[0].querySelectorAll('.stagger-item').forEach((el,i)=>{ setTimeout(()=>el.classList.add('in'), i*130); });
