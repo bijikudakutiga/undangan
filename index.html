@@ -489,7 +489,7 @@
   </div>
   <div class="envelope" id="envelope">
     <div class="env-guest">
-      <div class="kepada">Kepada Yth. Bapak/Ibu/Saudara/i</div>
+      <div class="kepada">Kepada Yth.</div>
       <div class="nama-tamu" id="guestNameEnvelope">Tamu Undangan</div>
     </div>
     <div class="env-flap"></div>
@@ -720,12 +720,14 @@ window.addEventListener('orientationchange', setVh);
 
 const params = new URLSearchParams(window.location.search);
 const guestName = params.get('to') ? decodeURIComponent(params.get('to')) : 'Tamu Undangan';
+const guestTitle = params.get('title') ? decodeURIComponent(params.get('title')) : '';
+const guestDisplayName = guestTitle ? `${guestTitle} ${guestName}` : guestName;
 const urlMaxSeats = parseInt(params.get('max') || '2', 10);
 
-document.getElementById('guestNameEnvelope').textContent = guestName;
+document.getElementById('guestNameEnvelope').textContent = guestDisplayName;
 document.getElementById('guestNameHero').innerHTML = '';
 const nameSpan = document.createElement('span');
-nameSpan.textContent = guestName;
+nameSpan.textContent = guestDisplayName;
 document.getElementById('guestNameHero').appendChild(nameSpan);
 
 /* Floating gold particles */
