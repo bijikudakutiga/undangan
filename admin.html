@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin Undangan</title>
+<style>
+  :root{
+    --bg:#faf6ee; --card:#fffdf8; --ink:#3b3226; --muted:#8a7d68; --gold:#b8913f; --line:#eadfc8;
+    --ok:#3f7d4e; --no:#a8473d; --wait:#8a7d68;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1b1812; --card:#242017; --ink:#f1e8d4; --muted:#a39879; --gold:#d4ab5a; --line:#3a3425; --ok:#6bbf80; --no:#e0766b; --wait:#a39879; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-family:Georgia,serif;font-weight:500;color:var(--gold);margin:8px 0 2px;font-size:26px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  #login{max-width:360px;margin:12vh auto 0;text-align:center}
+  input[type=password],input[type=search]{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-size:16px}
+  button{cursor:pointer;border:0;border-radius:10px;padding:11px 16px;font-size:15px;background:var(--gold);color:#fff;font-weight:600}
+  button.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .err{color:var(--no);min-height:20px;margin:8px 0 0;font-size:14px}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+  @media(min-width:640px){.stats{grid-template-columns:repeat(4,1fr)}}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .stat b{display:block;font-size:28px;font-family:Georgia,serif;line-height:1.1}
+  .stat span{color:var(--muted);font-size:13px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+  .bar .grow{flex:1;min-width:160px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tab{background:transparent;color:var(--muted);border:1px solid var(--line);padding:7px 12px;font-weight:500;font-size:14px}
+  .tab.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
+  .Hadir{color:var(--ok)} .Tidak{color:var(--no)} .Belum{color:var(--wait)}
+  .wish{padding:12px 0;border-bottom:1px solid var(--line)}
+  .wish:last-child{border:0}
+  .wish b{display:block}
+  .wish small{color:var(--muted)}
+  .wish p{margin:4px 0 0;white-space:pre-wrap;word-break:break-word}
+  h2{font-family:Georgia,serif;font-weight:500;font-size:20px;margin:26px 0 10px}
+  .tablewrap{overflow-x:auto}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login" class="card">
+    <h1>Admin</h1>
+    <p class="sub">Yan &amp; Listy · 28 November 2026</p>
+    <input id="pass" type="password" placeholder="Kode admin" autocomplete="current-password">
+    <p class="err" id="err"></p>
+    <button id="go" style="width:100%">Masuk</button>
+  </div>
+
+  <div id="app" class="hide">
+    <h1>Ringkasan RSVP</h1>
+    <p class="sub" id="updated">—</p>
+
+    <div class="stats">
+      <div class="stat"><b id="sHadirOrang">0</b><span>orang hadir</span></div>
+      <div class="stat"><b id="sHadir">0</b><span>undangan hadir</span></div>
+      <div class="stat"><b id="sTidak">0</b><span>tidak hadir</span></div>
+      <div class="stat"><b id="sBelum">0</b><span>belum menjawab</span></div>
+    </div>
+    <p class="sub" id="sInfo"></p>
+
+    <div class="card">
+      <div class="bar">
+        <input class="grow" id="q" type="search" placeholder="Cari nama tamu…">
+        <button class="ghost" id="refresh">Muat ulang</button>
+        <button class="ghost" id="csv">Unduh CSV</button>
+      </div>
+      <div class="tabs" id="tabs">
+        <button class="tab on" data-f="all">Semua</button>
+        <button class="tab" data-f="Hadir">Hadir</button>
+        <button class="tab" data-f="Tidak Hadir">Tidak hadir</button>
+        <button class="tab" data-f="Belum">Belum menjawab</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Nama</th><th>Status</th><th>Orang</th><th>Jatah</th><th>Waktu</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>Ucapan &amp; doa <span id="wCount" class="sub"></span></h2>
+    <div class="card" id="wishes"></div>
+
+    <p class="sub" style="margin-top:20px"><button class="ghost" id="logout">Keluar</button></p>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://gvkkjsezlbemrttklcsz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2a2tqc2V6bGJlbXJ0dGtsY3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2NDAzNTIsImV4cCI6MjEwMzIxNjM1Mn0.ZSEzE0XcBdn5zuYgC_36Axuid2YoyAH0mGVW_184yvQ';
+
+const $ = id => document.getElementById(id);
+let DATA = null, FILTER = 'all', PASS = '';
+
+const store = {
+  get(){ try { return sessionStorage.getItem('adm') || ''; } catch(e){ return ''; } },
+  set(v){ try { sessionStorage.setItem('adm', v); } catch(e){} },
+  del(){ try { sessionStorage.removeItem('adm'); } catch(e){} }
+};
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = t => t ? new Date(t).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+
+async function load(pass){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/admin_data', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY },
+    body: JSON.stringify({ pass })
+  });
+  if(!res.ok){
+    let m = ''; try { m = (await res.json()).message || ''; } catch(e){}
+    throw new Error(/Kode salah/i.test(m) ? 'Kode salah.' : 'Gagal memuat data ('+res.status+'). '+m);
+  }
+  return res.json();
+}
+
+function status(g){
+  if(!g.attend) return 'Belum';
+  return g.attend === 'Hadir' ? 'Hadir' : 'Tidak Hadir';
+}
+
+function render(){
+  const all = [...DATA.guests, ...DATA.extra.map(e => ({...e, max_seats:null, extra:true}))];
+  let hadir=0, orang=0, tidak=0, belum=0, jatah=0;
+  all.forEach(g=>{
+    const s = status(g);
+    if(s==='Hadir'){ hadir++; orang += g.seats||0; }
+    else if(s==='Tidak Hadir') tidak++;
+    else belum++;
+    jatah += g.max_seats||0;
+  });
+  $('sHadirOrang').textContent = orang;
+  $('sHadir').textContent = hadir;
+  $('sTidak').textContent = tidak;
+  $('sBelum').textContent = belum;
+  $('sInfo').textContent = DATA.guests.length + ' undangan terdaftar · total jatah ' + jatah + ' kursi'
+    + (DATA.extra.length ? ' · ' + DATA.extra.length + ' RSVP dengan nama di luar daftar' : '');
+  $('updated').textContent = 'Diperbarui ' + new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+
+  const q = $('q').value.trim().toLowerCase();
+  const list = all.filter(g=>{
+    const s = status(g);
+    if(FILTER!=='all' && s!==FILTER) return false;
+    return !q || (g.name||'').toLowerCase().includes(q);
+  });
+  $('rows').innerHTML = list.length ? list.map(g=>{
+    const s = status(g), cls = s.split(' ')[0];
+    return `<tr><td>${esc(g.name)}${g.extra?' <small style="color:var(--no)">(tidak di daftar)</small>':''}</td>
+      <td><span class="pill ${cls}">${s}</span></td>
+      <td>${s==='Hadir'?esc(g.seats):'—'}</td>
+      <td>${g.max_seats ?? '—'}</td>
+      <td>${fmt(g.rsvp_at)}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" style="color:var(--muted)">Tidak ada data.</td></tr>';
+
+  $('wCount').textContent = '(' + DATA.wishes.length + ')';
+  $('wishes').innerHTML = DATA.wishes.length ? DATA.wishes.map(w=>
+    `<div class="wish"><b>${esc(w.name)}</b><small>${fmt(w.created_at)}</small><p>${esc(w.message)}</p></div>`
+  ).join('') : '<span style="color:var(--muted)">Belum ada ucapan.</span>';
+}
+
+async function enter(pass){
+  $('err').textContent = '';
+  $('go').disabled = true; $('go').textContent = 'Memuat…';
+  try{
+    DATA = await load(pass);
+    PASS = pass; store.set(pass);
+    $('login').classList.add('hide'); $('app').classList.remove('hide');
+    render();
+  }catch(e){
+    $('err').textContent = e.message;
+    store.del();
+  }finally{
+    $('go').disabled = false; $('go').textContent = 'Masuk';
+  }
+}
+
+$('go').onclick = () => enter($('pass').value.trim());
+$('pass').addEventListener('keydown', e => { if(e.key==='Enter') $('go').click(); });
+$('refresh').onclick = async () => { try{ DATA = await load(PASS); render(); }catch(e){ alert(e.message); } };
+$('logout').onclick = () => { store.del(); location.reload(); };
+$('q').addEventListener('input', render);
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.tab'); if(!b) return;
+  FILTER = b.dataset.f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t===b));
+  render();
+});
+$('csv').onclick = () => {
+  const all = [...DATA.guests, ...DATA.extra.map(e => ({...e, max_seats:''}))];
+  const rows = [['Nama','Status','Jumlah Hadir','Jatah Kursi','Waktu RSVP']].concat(
+    all.map(g => [g.name, status(g), status(g)==='Hadir' ? g.seats : '', g.max_seats ?? '', g.rsvp_at || ''])
+  );
+  const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'rsvp-undangan.csv'; a.click();
+};
+
+const saved = store.get();
+if(saved) enter(saved);
+</script>
+</body>
+</html>
