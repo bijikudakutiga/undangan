@@ -78,6 +78,7 @@
     <div class="card">
       <div class="bar">
         <input class="grow" id="q" type="search" placeholder="Cari nama tamu…">
+        <select id="ord" style="padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font-size:15px"><option value="list">Urutan spreadsheet</option><option value="az">A–Z</option></select>
         <button class="ghost" id="refresh">Muat ulang</button>
         <button class="ghost" id="csv">Unduh CSV</button>
       </div>
@@ -89,7 +90,7 @@
       </div>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Nama</th><th>Status</th><th>Orang</th><th>Jatah</th><th>Waktu</th><th>Kirim WA</th></tr></thead>
+          <thead><tr><th>No</th><th>Nama</th><th>Status</th><th>Orang</th><th>Jatah</th><th>Waktu</th><th>Kirim WA</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -202,6 +203,8 @@ function render(){
   $('updated').textContent = 'Diperbarui ' + new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
 
   const q = $('q').value.trim().toLowerCase();
+  if($('ord').value==='az') all.sort((a,b)=>String(a.name).localeCompare(String(b.name),'id'));
+  else all.sort((a,b)=>(a.no??1e9)-(b.no??1e9) || String(a.name).localeCompare(String(b.name),'id'));
   const list = all.filter(g=>{
     const s = status(g);
     if(FILTER!=='all' && s!==FILTER) return false;
@@ -209,12 +212,12 @@ function render(){
   });
   $('rows').innerHTML = list.length ? list.map(g=>{
     const s = status(g), cls = s.split(' ')[0];
-    return `<tr><td>${esc(g.name)}${g.extra?' <small style="color:var(--no)">(tidak di daftar)</small>':''}</td>
+    return `<tr><td>${g.no ?? ''}</td><td>${esc(g.name)}${g.extra?' <small style="color:var(--no)">(tidak di daftar)</small>':''}</td>
       <td><span class="pill ${cls}">${s}</span></td>
       <td>${s==='Hadir'?esc(g.seats):'—'}</td>
       <td>${g.max_seats ?? '—'}</td>
       <td>${fmt(g.rsvp_at)}</td><td>${waCell(g)}</td></tr>`;
-  }).join('') : '<tr><td colspan="6" style="color:var(--muted)">Tidak ada data.</td></tr>';
+  }).join('') : '<tr><td colspan="7" style="color:var(--muted)">Tidak ada data.</td></tr>';
 
   $('wCount').textContent = '(' + DATA.wishes.length + ')';
   $('wishes').innerHTML = DATA.wishes.length ? DATA.wishes.map(w=>
@@ -243,6 +246,7 @@ $('pass').addEventListener('keydown', e => { if(e.key==='Enter') $('go').click()
 $('refresh').onclick = async () => { try{ DATA = await load(PASS); render(); }catch(e){ alert(e.message); } };
 $('logout').onclick = () => { store.del(); location.reload(); };
 $('q').addEventListener('input', render);
+$('ord').addEventListener('change', render);
 $('rows').addEventListener('click', e => {
   const a = e.target.closest('a.wa[data-n]'); if(!a) return;
   const k = a.dataset.k, n = a.dataset.n;
