@@ -47,6 +47,9 @@
   h2{font-family:Georgia,serif;font-weight:500;font-size:20px;margin:26px 0 10px}
   .tablewrap{overflow-x:auto}
   .hide{display:none}
+  a.wa{display:inline-block;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid var(--gold);color:var(--gold);margin:0 4px 4px 0;white-space:nowrap}
+  a.wa.sent{background:var(--gold);color:#fff}
+  a.wa.off{border-color:var(--line);color:var(--muted);pointer-events:none}
 </style>
 </head>
 <body>
@@ -86,7 +89,7 @@
       </div>
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Nama</th><th>Status</th><th>Orang</th><th>Jatah</th><th>Waktu</th></tr></thead>
+          <thead><tr><th>Nama</th><th>Status</th><th>Orang</th><th>Jatah</th><th>Waktu</th><th>Kirim WA</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
@@ -111,6 +114,53 @@ const store = {
   set(v){ try { sessionStorage.setItem('adm', v); } catch(e){} },
   del(){ try { sessionStorage.removeItem('adm'); } catch(e){} }
 };
+
+const BASE = 'https://undangan-e8p.pages.dev/';
+const sentStore = {
+  load(k){ try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch(e){ return {}; } },
+  save(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+let SENT = { u: sentStore.load('sent_u'), r: sentStore.load('sent_r') };
+
+function phoneOf(g){
+  let p = String(g.phone || '').replace(/\D/g,'');
+  if(p.startsWith('0')) p = '62' + p.slice(1);
+  return p.length >= 9 ? p : '';
+}
+function linkOf(g){
+  return BASE + '?to=' + encodeURIComponent(g.name) + '&title=' + encodeURIComponent(g.title || 'Bapak/Ibu') + '&max=' + (g.max_seats || 2);
+}
+function msgUndang(g){
+  const t = g.title || 'Bapak/Ibu';
+  return 'Salam sejahtera,\n\nYth. ' + t + ' ' + g.name + ',\n\n' +
+    'Dengan penuh sukacita, kami mengundang ' + t + ' untuk hadir dalam pernikahan kami:\n\n' +
+    'Yan Peter Pranoto Pramono & Margaretha Listiyati Brotomulyono\n\n' +
+    'Sabtu, 28 November 2026, Pk. 09.00 WIB\nGPIB Immanuel Semarang (Gereja Blenduk)\n\n' +
+    'Informasi lengkap acara dan konfirmasi kehadiran dapat ' + t + ' lihat melalui tautan berikut:\n\n' +
+    linkOf(g) + '\n\n' +
+    'Mohon konfirmasi melalui WhatsApp kami apabila terdapat penambahan jumlah kursi dari yang telah disediakan.\n\n' +
+    'Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila ' + t + ' berkenan hadir dan memberikan doa restu.\n\n' +
+    'Hormat kami,\nYan Peter & Margaretha';
+}
+function msgIngat(g){
+  const t = g.title || 'Bapak/Ibu';
+  return 'Salam sejahtera,\n\nYth. ' + t + ' ' + g.name + ',\n\n' +
+    'Kami mengingatkan dengan hormat mengenai undangan pernikahan kami pada Sabtu, 28 November 2026, Pk. 09.00 WIB di GPIB Immanuel Semarang (Gereja Blenduk).\n\n' +
+    'Apabila berkenan, mohon konfirmasi kehadiran ' + t + ' melalui tautan berikut:\n\n' +
+    linkOf(g) + '\n\n' +
+    'Atas perhatian dan doa restunya, kami ucapkan terima kasih.\n\n' +
+    'Hormat kami,\nYan Peter & Margaretha';
+}
+function waCell(g){
+  if(g.extra) return '—';
+  const p = phoneOf(g);
+  if(!p) return '<a class="wa off">No. WA kosong</a>';
+  const u = 'https://wa.me/' + p + '?text=' + encodeURIComponent(msgUndang(g));
+  const r = 'https://wa.me/' + p + '?text=' + encodeURIComponent(msgIngat(g));
+  const key = encodeURIComponent(g.name);
+  return '<a class="wa'+(SENT.u[g.name]?' sent':'')+'" href="'+u+'" target="_blank" rel="noopener" data-k="u" data-n="'+esc(g.name)+'">'+(SENT.u[g.name]?'✓ ':'')+'Undang</a>' +
+         (status(g)==='Belum' ? '<a class="wa'+(SENT.r[g.name]?' sent':'')+'" href="'+r+'" target="_blank" rel="noopener" data-k="r" data-n="'+esc(g.name)+'">'+(SENT.r[g.name]?'✓ ':'')+'Ingatkan</a>' : '');
+}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = t => t ? new Date(t).toLocaleString('id-ID', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
@@ -163,8 +213,8 @@ function render(){
       <td><span class="pill ${cls}">${s}</span></td>
       <td>${s==='Hadir'?esc(g.seats):'—'}</td>
       <td>${g.max_seats ?? '—'}</td>
-      <td>${fmt(g.rsvp_at)}</td></tr>`;
-  }).join('') : '<tr><td colspan="5" style="color:var(--muted)">Tidak ada data.</td></tr>';
+      <td>${fmt(g.rsvp_at)}</td><td>${waCell(g)}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="color:var(--muted)">Tidak ada data.</td></tr>';
 
   $('wCount').textContent = '(' + DATA.wishes.length + ')';
   $('wishes').innerHTML = DATA.wishes.length ? DATA.wishes.map(w=>
@@ -193,6 +243,14 @@ $('pass').addEventListener('keydown', e => { if(e.key==='Enter') $('go').click()
 $('refresh').onclick = async () => { try{ DATA = await load(PASS); render(); }catch(e){ alert(e.message); } };
 $('logout').onclick = () => { store.del(); location.reload(); };
 $('q').addEventListener('input', render);
+$('rows').addEventListener('click', e => {
+  const a = e.target.closest('a.wa[data-n]'); if(!a) return;
+  const k = a.dataset.k, n = a.dataset.n;
+  SENT[k][n] = Date.now();
+  sentStore.save(k==='u' ? 'sent_u' : 'sent_r', SENT[k]);
+  a.classList.add('sent');
+  if(!a.textContent.startsWith('✓')) a.textContent = '✓ ' + a.textContent;
+});
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if(!b) return;
   FILTER = b.dataset.f;
