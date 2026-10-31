@@ -270,8 +270,8 @@ $('tabs').addEventListener('click', e => {
 });
 $('csv').onclick = () => {
   const all = [...DATA.guests, ...DATA.extra.map(e => ({...e, max_seats:''}))];
-  const rows = [['Nama','Status','Jumlah Hadir','Jatah Kursi','Waktu RSVP']].concat(
-    all.map(g => [g.name, status(g), status(g)==='Hadir' ? g.seats : '', g.max_seats ?? '', g.rsvp_at || ''])
+  const rows = [['Nama','No. HP','Status','Jumlah Hadir','Jatah Kursi','Waktu RSVP']].concat(
+    all.map(g => [g.name, phoneOf(g), status(g), status(g)==='Hadir' ? g.seats : '', g.max_seats ?? '', g.rsvp_at || ''])
   );
   const csv = rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const a = document.createElement('a');
@@ -295,6 +295,11 @@ async function ensurePdfLibs(){
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const p2 = n => String(n).padStart(2,'0');
 function tglLong(d){ return d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear() + ', ' + p2(d.getHours()) + '.' + p2(d.getMinutes()) + ' WIB'; }
+function phoneFmt(g){
+  const p = phoneOf(g); if(!p) return '-';
+  const l = '0' + p.slice(2);
+  return l.slice(0,4) + '-' + l.slice(4,8) + (l.length>8 ? '-' + l.slice(8) : '');
+}
 function tglShort(t){ if(!t) return '-'; const d = new Date(t); return d.getDate() + ' ' + BULAN[d.getMonth()].slice(0,3) + ' ' + p2(d.getHours()) + '.' + p2(d.getMinutes()); }
 
 $('pdf').onclick = async () => {
@@ -342,27 +347,27 @@ $('pdf').onclick = async () => {
     // Tabel
     const body = list.map(g => {
       const s = status(g);
-      return [ g.no ?? '', g.name, s === 'Belum' ? 'Belum menjawab' : s, s === 'Hadir' ? String(g.seats ?? '') : '-', String(g.max_seats ?? '-'), tglShort(g.rsvp_at) ];
+      return [ g.no ?? '', g.name, phoneFmt(g), s === 'Belum' ? 'Belum menjawab' : s, s === 'Hadir' ? String(g.seats ?? '') : '-', String(g.max_seats ?? '-'), tglShort(g.rsvp_at) ];
     });
     doc.autoTable({
       startY: by + bh + 28,
-      head: [['No','Nama Tamu','Status','Jumlah Hadir','Jatah Kursi','Waktu Konfirmasi']],
+      head: [['No','Nama Tamu','No. HP','Status','Hadir','Jatah','Waktu Konfirmasi']],
       body,
       theme: 'grid',
       margin: { left: 48, right: 48, bottom: 44 },
-      styles: { font:'helvetica', fontSize:9.5, cellPadding:{top:5,bottom:5,left:6,right:6}, textColor: INK, lineColor:[226,214,190], lineWidth:0.5, valign:'middle' },
+      styles: { font:'helvetica', fontSize:9, cellPadding:{top:5,bottom:5,left:5,right:5}, textColor: INK, lineColor:[226,214,190], lineWidth:0.5, valign:'middle' },
       headStyles: { fillColor: GOLD, textColor:[255,255,255], fontStyle:'bold', halign:'left' },
-      columnStyles: { 0:{cellWidth:30, halign:'center'}, 2:{cellWidth:90}, 3:{cellWidth:62, halign:'center'}, 4:{cellWidth:56, halign:'center'}, 5:{cellWidth:88} },
+      columnStyles: { 0:{cellWidth:26, halign:'center'}, 2:{cellWidth:78}, 3:{cellWidth:74}, 4:{cellWidth:36, halign:'center'}, 5:{cellWidth:36, halign:'center'}, 6:{cellWidth:66} },
       didParseCell: d => {
         if(d.section !== 'body') return;
-        const s = d.row.raw[2];
+        const s = d.row.raw[3];
         if(s === 'Hadir'){
           d.cell.styles.fillColor = [232,245,236];
-          if(d.column.index === 2) { d.cell.styles.textColor = GREEN; d.cell.styles.fontStyle = 'bold'; }
+          if(d.column.index === 3) { d.cell.styles.textColor = GREEN; d.cell.styles.fontStyle = 'bold'; }
         } else if(s === 'Tidak Hadir'){
           d.cell.styles.fillColor = [252,235,232];
-          if(d.column.index === 2) { d.cell.styles.textColor = RED; d.cell.styles.fontStyle = 'bold'; }
-        } else if(d.column.index === 2) {
+          if(d.column.index === 3) { d.cell.styles.textColor = RED; d.cell.styles.fontStyle = 'bold'; }
+        } else if(d.column.index === 3) {
           d.cell.styles.textColor = MUTED;
         }
       },
