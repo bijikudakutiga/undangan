@@ -300,6 +300,12 @@ function phoneFmt(g){
   const l = '0' + p.slice(2);
   return l.slice(0,4) + '-' + l.slice(4,8) + (l.length>8 ? '-' + l.slice(8) : '');
 }
+function clean(t){
+  return String(t ?? '')
+    .replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/\u2026/g,'...')
+    .replace(/[^\n\t\x20-\x7E\u00A0-\u00FF]/g,'')
+    .replace(/[ \t]+\n/g,'\n').trim();
+}
 function tglShort(t){ if(!t) return '-'; const d = new Date(t); return d.getDate() + ' ' + BULAN[d.getMonth()].slice(0,3) + ' ' + p2(d.getHours()) + '.' + p2(d.getMinutes()); }
 
 $('pdf').onclick = async () => {
@@ -377,6 +383,35 @@ $('pdf').onclick = async () => {
         doc.text('Halaman ' + doc.internal.getNumberOfPages(), W - 48, H - 24, {align:'right'});
       }
     });
+
+    // Ucapan & doa
+    const wishes = (DATA.wishes || []);
+    let wy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : by + bh + 28) + 34;
+    if(wy > H - 140){ doc.addPage(); wy = 56; }
+    doc.setFont('times','bold'); doc.setFontSize(17); doc.setTextColor(...GOLD);
+    doc.text('Ucapan & Doa (' + wishes.length + ')', 48, wy);
+    doc.setDrawColor(...GOLD); doc.setLineWidth(1); doc.line(48, wy + 8, W-48, wy + 8);
+    if(!wishes.length){
+      doc.setFont('helvetica','italic'); doc.setFontSize(10); doc.setTextColor(...MUTED);
+      doc.text('Belum ada ucapan yang masuk.', 48, wy + 28);
+    } else {
+      doc.autoTable({
+        startY: wy + 16,
+        head: [['Nama','Waktu','Ucapan']],
+        body: wishes.map(w => [clean(w.name), tglShort(w.created_at), clean(w.message)]),
+        theme: 'grid',
+        margin: { left: 48, right: 48, bottom: 44 },
+        styles: { font:'helvetica', fontSize:9.5, cellPadding:{top:6,bottom:6,left:6,right:6}, textColor: INK, lineColor:[226,214,190], lineWidth:0.5, valign:'top', overflow:'linebreak' },
+        headStyles: { fillColor: GOLD, textColor:[255,255,255], fontStyle:'bold' },
+        alternateRowStyles: { fillColor:[252,249,242] },
+        columnStyles: { 0:{cellWidth:110, fontStyle:'bold'}, 1:{cellWidth:62}, 2:{cellWidth:'auto'} },
+        didDrawPage: () => {
+          doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...MUTED);
+          doc.text('\u00A9 2023 Xancovia Studio', 48, H - 24);
+          doc.text('Halaman ' + doc.internal.getNumberOfPages(), W - 48, H - 24, {align:'right'});
+        }
+      });
+    }
 
     const n = new Date();
     doc.save('konfirmasi-hadir-yan-listy-' + n.getFullYear() + '-' + p2(n.getMonth()+1) + '-' + p2(n.getDate()) + '.pdf');
