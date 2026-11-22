@@ -52,6 +52,25 @@
   a.wa{display:inline-block;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid var(--gold);color:var(--gold);margin:0 4px 4px 0;white-space:nowrap}
   a.wa.sent{background:var(--gold);color:#fff}
   a.wa.off{border-color:var(--line);color:var(--muted);pointer-events:none}
+  .editbtn{background:transparent;border:1px solid var(--line);color:var(--gold);padding:2px 8px;font-size:12px;border-radius:8px;margin-left:6px;font-weight:600;vertical-align:middle}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+  #modal.hide{display:none}
+  #sheet{background:var(--card);color:var(--ink);width:100%;max-width:460px;border-radius:18px 18px 0 0;padding:20px 18px 22px;border:1px solid var(--line)}
+  @media(min-width:520px){#modal{align-items:center} #sheet{border-radius:18px}}
+  #sheet h3{margin:0 0 2px;font-family:Georgia,serif;font-weight:500;font-size:20px;color:var(--gold)}
+  #sheet .lab{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:90px;background:transparent;color:var(--muted);border:1px solid var(--line);padding:10px 8px;font-weight:600;font-size:14px}
+  .seg button.on.h{background:var(--ok);color:#fff;border-color:var(--ok)}
+  .seg button.on.t{background:var(--no);color:#fff;border-color:var(--no)}
+  .seg button.on.b{background:var(--muted);color:#fff;border-color:var(--muted)}
+  .stepper{display:flex;align-items:center;gap:14px}
+  .stepper button{width:44px;height:44px;font-size:22px;padding:0;background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .stepper b{font-family:Georgia,serif;font-size:28px;min-width:36px;text-align:center}
+  .stepper small{color:var(--muted)}
+  #mErr{color:var(--no);min-height:18px;font-size:14px;margin:10px 0 0}
+  .mact{display:flex;gap:8px;margin-top:14px}
+  .mact button{flex:1}
 </style>
 </head>
 <body>
@@ -104,6 +123,26 @@
 
     <p class="sub" style="margin-top:20px"><button class="ghost" id="logout">Keluar</button></p>
     <p style="text-align:center;font-size:11px;letter-spacing:.08em;color:var(--muted);opacity:.7;margin-top:30px">&copy; 2023 Xancovia Studio</p>
+  </div>
+</div>
+
+<div id="modal" class="hide">
+  <div id="sheet">
+    <h3 id="mName">Nama</h3>
+    <div class="lab">Status kehadiran</div>
+    <div class="seg" id="mStatus">
+      <button class="h" data-v="Hadir">Hadir</button>
+      <button class="t" data-v="Tidak Hadir">Tidak hadir</button>
+      <button class="b" data-v="Belum">Belum</button>
+    </div>
+    <div id="mSeatsWrap">
+      <div class="lab">Jumlah yang hadir</div>
+      <div class="stepper"><button id="sMinus">&minus;</button><b id="mSeats">1</b><button id="sPlus">+</button><small id="mSeatsNote"></small></div>
+    </div>
+    <div class="lab">Jatah kursi</div>
+    <div class="stepper"><button id="jMinus">&minus;</button><b id="mMax">2</b><button id="jPlus">+</button><small>kursi dijatahkan</small></div>
+    <p id="mErr"></p>
+    <div class="mact"><button class="ghost" id="mCancel">Batal</button><button id="mSave">Simpan</button></div>
   </div>
 </div>
 
@@ -219,7 +258,7 @@ function render(){
   LASTLIST = list;
   $('rows').innerHTML = list.length ? list.map(g=>{
     const s = status(g), cls = s.split(' ')[0];
-    return `<tr><td>${g.no ?? ''}</td><td>${esc(g.name)}${g.extra?' <small style="color:var(--no)">(tidak di daftar)</small>':''}</td>
+    return `<tr><td>${g.no ?? ''}</td><td>${esc(g.name)}${g.extra?' <small style="color:var(--no)">(tidak di daftar)</small>':' <button class="editbtn" data-edit="'+esc(g.name)+'">Ubah</button>'}</td>
       <td><span class="pill ${cls}">${s}</span></td>
       <td>${s==='Hadir'?esc(g.seats):'—'}</td>
       <td>${g.max_seats ?? '—'}</td>
@@ -419,6 +458,60 @@ $('pdf').onclick = async () => {
     alert('Gagal membuat PDF: ' + e.message + '\nPeriksa koneksi internet lalu coba lagi.');
   }finally{
     btn.disabled = false; btn.textContent = old;
+  }
+};
+
+// ===== Ubah status & jatah kursi =====
+async function rpc(fn, body){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    let m = ''; try { m = (await res.json()).message || ''; } catch(e){}
+    throw new Error(/Kode salah/i.test(m) ? 'Kode salah.' : (m || ('Gagal ('+res.status+')')));
+  }
+}
+const M = { g:null, status:'Belum', seats:1, max:2, origStatus:'Belum', origSeats:0, origMax:2 };
+function mRender(){
+  document.querySelectorAll('#mStatus button').forEach(b => b.classList.toggle('on', b.dataset.v === M.status));
+  $('mSeatsWrap').classList.toggle('hide', M.status !== 'Hadir');
+  $('mSeats').textContent = M.seats;
+  $('mMax').textContent = M.max;
+  $('mSeatsNote').textContent = 'dari ' + M.max + ' kursi';
+}
+function mOpen(name){
+  const g = DATA.guests.find(x => x.name === name); if(!g) return;
+  const s = status(g);
+  M.g = g; M.status = s; M.origStatus = s;
+  M.max = g.max_seats || 2; M.origMax = M.max;
+  M.seats = s === 'Hadir' ? (g.seats || 1) : 1; M.origSeats = s === 'Hadir' ? (g.seats || 1) : 0;
+  $('mName').textContent = g.name; $('mErr').textContent = '';
+  $('modal').classList.remove('hide'); mRender();
+}
+function mClose(){ $('modal').classList.add('hide'); }
+$('rows').addEventListener('click', e => { const b = e.target.closest('[data-edit]'); if(b) mOpen(b.dataset.edit); });
+$('mStatus').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; M.status = b.dataset.v; if(M.status==='Hadir' && M.seats > M.max) M.seats = M.max; mRender(); });
+$('sMinus').onclick = () => { if(M.seats > 1){ M.seats--; mRender(); } };
+$('sPlus').onclick  = () => { if(M.seats < M.max){ M.seats++; mRender(); } };
+$('jMinus').onclick = () => { if(M.max > 1){ M.max--; if(M.seats > M.max) M.seats = M.max; mRender(); } };
+$('jPlus').onclick  = () => { if(M.max < 30){ M.max++; mRender(); } };
+$('mCancel').onclick = mClose;
+$('modal').addEventListener('click', e => { if(e.target.id === 'modal') mClose(); });
+$('mSave').onclick = async () => {
+  const btn = $('mSave'); btn.disabled = true; btn.textContent = 'Menyimpan…'; $('mErr').textContent = '';
+  try{
+    if(M.max !== M.origMax) await rpc('admin_set_seats', { pass: PASS, p_name: M.g.name, p_max: M.max });
+    const seatsNow = M.status === 'Hadir' ? M.seats : 0;
+    if(M.status !== M.origStatus || (M.status === 'Hadir' && seatsNow !== M.origSeats)){
+      await rpc('admin_set_rsvp', { pass: PASS, p_name: M.g.name, p_attend: M.status, p_seats: seatsNow });
+    }
+    DATA = await load(PASS); render(); mClose();
+  }catch(e){
+    $('mErr').textContent = e.message;
+  }finally{
+    btn.disabled = false; btn.textContent = 'Simpan';
   }
 };
 
