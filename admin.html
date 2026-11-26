@@ -71,6 +71,31 @@
   #mErr{color:var(--no);min-height:18px;font-size:14px;margin:10px 0 0}
   .mact{display:flex;gap:8px;margin-top:14px}
   .mact button{flex:1}
+  .sum{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 16px 14px;margin-bottom:12px}
+  .sum h2{margin:0 0 10px;font-family:Georgia,serif;font-weight:500;font-size:18px;color:var(--gold)}
+  .sum h2 small{font-family:system-ui,sans-serif;font-size:12px;color:var(--muted);font-weight:400}
+  .hero{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .hero b{font-family:Georgia,serif;font-size:44px;line-height:1;color:var(--ok)}
+  .hero span{color:var(--muted);font-size:15px}
+  .meter{display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--line);margin:4px 0 12px}
+  .meter i{display:block;height:100%}
+  .c-ok{background:var(--ok)} .c-ok2{background:#9fd0ac} .c-no{background:var(--no)} .c-wait{background:#b9ae98}
+  @media (prefers-color-scheme: dark){ .c-ok2{background:#3d6b4b} .c-wait{background:#6b634f} }
+  .legend{list-style:none;margin:0;padding:0}
+  .legend li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+  .legend li:first-child{border-top:0}
+  .legend .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .legend span{flex:1;font-size:15px;line-height:1.25}
+  .legend span em{display:block;font-style:normal;color:var(--muted);font-size:12px}
+  .legend b{font-family:Georgia,serif;font-size:20px;min-width:44px;text-align:right}
+  .legend li.total{font-weight:700;border-top:2px solid var(--line)}
+  .legend li.total span{font-size:15px}
+  .note{margin:10px 0 0;padding:10px 12px;background:var(--bg);border-radius:10px;font-size:13px;color:var(--muted);line-height:1.45}
+  .note strong{color:var(--ink)}
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;text-align:center}
+  .trio b{display:block;font-family:Georgia,serif;font-size:30px;line-height:1.1}
+  .trio b.ok{color:var(--ok)} .trio b.no{color:var(--no)}
+  .trio span{color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
@@ -88,12 +113,30 @@
     <h1>Ringkasan RSVP</h1>
     <p class="sub" id="updated">—</p>
 
-    <div class="stats">
-      <div class="stat hadir"><b><span id="sHadirOrang">0</span><small id="sHadirOrangOf"></small></b><span class="lbl">jumlah tamu hadir</span></div>
-      <div class="stat hadir"><b><span id="sHadir">0</span><small id="sHadirOf"></small></b><span class="lbl">konfirmasi hadir</span></div>
-      <div class="stat tidak"><b id="sTidak">0</b><span class="lbl">tidak hadir</span></div>
-      <div class="stat"><b><span id="sBelum">0</span><small id="sBelumOf"></small></b><span class="lbl">belum menjawab</span></div>
-    </div>
+    <section class="sum">
+      <h2>Jumlah Orang <small>(dihitung per kursi)</small></h2>
+      <div class="hero"><b id="kHadir">0</b><span>orang akan hadir</span></div>
+      <div class="meter" id="kBar"></div>
+      <ul class="legend">
+        <li><i class="dot c-ok"></i><span>Akan hadir<em>sudah konfirmasi hadir</em></span><b id="kHadir2">0</b></li>
+        <li><i class="dot c-ok2"></i><span>Kursi tidak terpakai<em>jatah tamu yang hadir, tapi tidak diisi</em></span><b id="kSisa">0</b></li>
+        <li><i class="dot c-no"></i><span>Tidak hadir<em>jatah kursi mereka</em></span><b id="kTidak">0</b></li>
+        <li><i class="dot c-wait"></i><span>Belum menjawab<em>jatah kursi mereka</em></span><b id="kBelum">0</b></li>
+        <li class="total"><span>Total kursi dijatahkan</span><b id="kTotal">0</b></li>
+      </ul>
+      <p class="note" id="kNote"></p>
+    </section>
+
+    <section class="sum">
+      <h2>Jumlah Undangan <small>(satu nama = satu undangan)</small></h2>
+      <div class="trio">
+        <div><b class="ok" id="uHadir">0</b><span>hadir</span></div>
+        <div><b class="no" id="uTidak">0</b><span>tidak hadir</span></div>
+        <div><b id="uBelum">0</b><span>belum menjawab</span></div>
+      </div>
+      <div class="meter" id="uBar"></div>
+      <p class="note" id="uNote"></p>
+    </section>
     <p class="sub" id="sInfo"></p>
 
     <div class="card">
@@ -229,22 +272,28 @@ function status(g){
 
 function render(){
   const all = [...DATA.guests, ...DATA.extra.map(e => ({...e, max_seats:null, extra:true}))];
-  let hadir=0, orang=0, tidak=0, belum=0, jatah=0;
+  let hadir=0, orang=0, tidak=0, belum=0, jatah=0, jatahHadir=0, kTidak=0, kBelum=0;
   all.filter(g=>!g.extra).forEach(g=>{
-    const s = status(g);
-    if(s==='Hadir'){ hadir++; orang += g.seats||0; }
-    else if(s==='Tidak Hadir') tidak++;
-    else belum++;
-    jatah += g.max_seats||0;
+    const st = status(g), m = g.max_seats||0;
+    if(st==='Hadir'){ hadir++; orang += g.seats||0; jatahHadir += m; }
+    else if(st==='Tidak Hadir'){ tidak++; kTidak += m; }
+    else { belum++; kBelum += m; }
+    jatah += m;
   });
   const nGuests = DATA.guests.length;
-  STATS = {orang, hadir, tidak, belum, jatah, nGuests};
-  $('sHadirOrang').textContent = orang;  $('sHadirOrangOf').textContent = '/ ' + jatah;
-  $('sHadir').textContent = hadir;       $('sHadirOf').textContent = '/ ' + nGuests;
-  $('sTidak').textContent = tidak;
-  $('sBelum').textContent = belum;       $('sBelumOf').textContent = '/ ' + nGuests;
-  $('sInfo').textContent = DATA.guests.length + ' undangan terdaftar · total jatah ' + jatah + ' kursi'
-    + (DATA.extra.length ? ' · ' + DATA.extra.length + ' RSVP dengan nama di luar daftar' : '');
+  const kSisa = Math.max(jatahHadir - orang, 0);
+  STATS = {orang, hadir, tidak, belum, jatah, nGuests, kTidak, kBelum, kSisa};
+  const pct = (n,t) => t ? Math.round(n/t*100) : 0;
+  $('kHadir').textContent = orang; $('kHadir2').textContent = orang;
+  $('kSisa').textContent = kSisa; $('kTidak').textContent = kTidak; $('kBelum').textContent = kBelum; $('kTotal').textContent = jatah;
+  const seg = (n,t,c,l) => '<i class="'+c+'" style="width:'+(t? n/t*100 : 0)+'%" title="'+l+': '+n+'"></i>';
+  $('kBar').innerHTML = seg(orang,jatah,'c-ok','Hadir') + seg(kSisa,jatah,'c-ok2','Tidak terpakai') + seg(kTidak,jatah,'c-no','Tidak hadir') + seg(kBelum,jatah,'c-wait','Belum menjawab');
+  $('kNote').innerHTML = '<strong>' + orang + ' orang</strong> sudah pasti hadir (' + pct(orang,jatah) + '% dari ' + jatah + ' kursi). ' +
+    (kBelum ? 'Masih ada <strong>' + kBelum + ' kursi</strong> milik undangan yang belum menjawab, jadi total bisa bertambah sampai maksimal <strong>' + (orang + kBelum) + ' orang</strong>.' : 'Semua undangan sudah menjawab.');
+  $('uHadir').textContent = hadir; $('uTidak').textContent = tidak; $('uBelum').textContent = belum;
+  $('uBar').innerHTML = seg(hadir,nGuests,'c-ok','Hadir') + seg(tidak,nGuests,'c-no','Tidak hadir') + seg(belum,nGuests,'c-wait','Belum menjawab');
+  $('uNote').innerHTML = 'Dari <strong>' + nGuests + ' undangan</strong>, <strong>' + (hadir+tidak) + '</strong> sudah menjawab (' + pct(hadir+tidak,nGuests) + '%).';
+  $('sInfo').textContent = DATA.extra.length ? DATA.extra.length + ' RSVP memakai nama di luar daftar undangan (tidak ikut dihitung di atas).' : '';
   $('updated').textContent = 'Diperbarui ' + new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
 
   const q = $('q').value.trim().toLowerCase();
@@ -372,10 +421,10 @@ $('pdf').onclick = async () => {
     // Ringkasan (4 kotak)
     const st = STATS || {orang:0,hadir:0,tidak:0,belum:0,jatah:0,nGuests:0};
     const boxes = [
-      ['Jumlah tamu hadir', st.orang + ' / ' + st.jatah, GREEN],
-      ['Konfirmasi hadir', st.hadir + ' / ' + st.nGuests, GREEN],
-      ['Tidak hadir', String(st.tidak), RED],
-      ['Belum menjawab', st.belum + ' / ' + st.nGuests, INK]
+      ['Orang hadir', st.orang + ' / ' + st.jatah + ' kursi', GREEN],
+      ['Undangan hadir', st.hadir + ' / ' + st.nGuests, GREEN],
+      ['Undangan tidak hadir', String(st.tidak), RED],
+      ['Belum menjawab', st.belum + ' undangan', INK]
     ];
     const gap = 10, bw = (W - 96 - gap*3) / 4, by = 112, bh = 50;
     boxes.forEach((b,i) => {
